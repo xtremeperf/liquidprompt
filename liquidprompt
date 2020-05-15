@@ -78,7 +78,7 @@ if test -n "${BASH_VERSION-}" -a -n "$PS1" ; then
 
     _LP_FIRST_INDEX=0
     _LP_PERCENT='%'    # must be escaped on zsh
-    _LP_BACKSLASH='\\' # must be escaped on bash
+    _LP_BACKSLASH=\\ # must be escaped on bash
 
     # Escape the given strings
     # Must be used for all strings injected in PS1 that may comes from remote sources,
@@ -109,7 +109,7 @@ elif test -n "${ZSH_VERSION-}" ; then
 
     _LP_FIRST_INDEX=1
     _LP_PERCENT='%%'
-    _LP_BACKSLASH="\\"
+    _LP_BACKSLASH='\'
 
     _lp_escape()
     {
@@ -264,33 +264,41 @@ _lp_source_config()
 
     # Foreground colors
     local BLACK="${_LP_OPEN_ESC}$(ti_setaf 0)${_LP_CLOSE_ESC}"
-    local BOLD_GRAY="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 0)${_LP_CLOSE_ESC}"
+    # DWL: changed af color from 0 to 8 (bright version of color)
+    local BOLD_GRAY="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 8)${_LP_CLOSE_ESC}"
     local WHITE="${_LP_OPEN_ESC}$(ti_setaf 7)${_LP_CLOSE_ESC}"
-    local BOLD_WHITE="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 7)${_LP_CLOSE_ESC}"
+    # DWL: changed af color from 7 to 15 (bright version of color)
+    local BOLD_WHITE="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 15)${_LP_CLOSE_ESC}"
 
     local RED="${_LP_OPEN_ESC}$(ti_setaf 1)${_LP_CLOSE_ESC}"
-    local BOLD_RED="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 1)${_LP_CLOSE_ESC}"
+    # DWL: changed af color from 1 to 9 (bright version of color)
+    local BOLD_RED="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 9)${_LP_CLOSE_ESC}"
     local WARN_RED="${_LP_OPEN_ESC}$(ti_setaf 0 ; ti_setab 1)${_LP_CLOSE_ESC}"
     local CRIT_RED="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 7 ; ti_setab 1)${_LP_CLOSE_ESC}"
     local DANGER_RED="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 3 ; ti_setab 1)${_LP_CLOSE_ESC}"
 
     local GREEN="${_LP_OPEN_ESC}$(ti_setaf 2)${_LP_CLOSE_ESC}"
-    local BOLD_GREEN="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 2)${_LP_CLOSE_ESC}"
+    # DWL: changed af color from 2 to 10 (bright version of color)
+    local BOLD_GREEN="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 10)${_LP_CLOSE_ESC}"
 
     local YELLOW="${_LP_OPEN_ESC}$(ti_setaf 3)${_LP_CLOSE_ESC}"
-    local BOLD_YELLOW="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 3)${_LP_CLOSE_ESC}"
+    # DWL: changed af color from 3 to 11 (bright version of color)
+    local BOLD_YELLOW="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 11)${_LP_CLOSE_ESC}"
 
     local BLUE="${_LP_OPEN_ESC}$(ti_setaf 4)${_LP_CLOSE_ESC}"
-    local BOLD_BLUE="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 4)${_LP_CLOSE_ESC}"
+    # DWL: changed af color from 4 to 12 (bright version of color)
+    local BOLD_BLUE="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 12)${_LP_CLOSE_ESC}"
 
     local PURPLE="${_LP_OPEN_ESC}$(ti_setaf 5)${_LP_CLOSE_ESC}"
     local MAGENTA="${PURPLE}"
-    local PINK="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 5)${_LP_CLOSE_ESC}"
+    # DWL: changed af color from 5 to 13 (bright version of color)
+    local PINK="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 13)${_LP_CLOSE_ESC}"
     local BOLD_PURPLE="${PINK}"
     local BOLD_MAGENTA="${PINK}"
 
     local CYAN="${_LP_OPEN_ESC}$(ti_setaf 6)${_LP_CLOSE_ESC}"
-    local BOLD_CYAN="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 6)${_LP_CLOSE_ESC}"
+    # DWL: changed af color from 6 to 14 (bright version of color)
+    local BOLD_CYAN="${_LP_OPEN_ESC}${ti_bold}$(ti_setaf 14)${_LP_CLOSE_ESC}"
 
     # Colors mixing foreground and background
     # ${FORE_ON_BACK}, for example: ${BLUE_ON_RED} or ${BOLD_BLUE_ON_BOLD_RED}
@@ -469,6 +477,8 @@ _lp_source_config()
     LP_COLOR_IN_LOCAL=${LP_COLOR_IN_LOCAL:-$WHITE}
     LP_COLOR_RUNTIME=${LP_COLOR_RUNTIME:-$YELLOW}
     LP_COLOR_VIRTUALENV=${LP_COLOR_VIRTUALENV:-$CYAN}
+    LP_CURSOR_STYLE=${LP_CURSOR_STYLE:-""}
+    LP_CURSOR_ACTIVE=${LP_CURSOR_ACTIVE:-""}
 
     if [[ -z "${LP_COLORMAP-}" ]]; then
         LP_COLORMAP=(
@@ -2071,5 +2081,29 @@ prompt_OFF()
 
 # By default, sourcing liquidprompt will activate Liquid Prompt
 prompt_on
+
+function _lp_setCursorStyle()
+{
+  local DECSCUSR="\e[%s q"
+  local Ps
+  case "$1" in
+    1 | 2 | 3 | 4 | 5 | 6)
+      Ps=$1
+      ;;
+    0)
+      Ps=${LP_CURSOR_STYLE}
+      ;;
+    "")
+      Ps=${LP_CURSOR_ACTIVE:-${LP_CURSOR_STYLE}}
+      ;;
+  esac
+
+  # Print OSC ctrl seq for "DEC Set Cursor Style"
+  if [[ ${Ps} ]]; then
+    printf "${DECSCUSR}" ${Ps}
+    LP_CURSOR_ACTIVE=${Ps}
+  fi
+}
+
 
 # vim: set et sts=4 sw=4 tw=120 ft=sh:
