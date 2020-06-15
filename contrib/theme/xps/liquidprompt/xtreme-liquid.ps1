@@ -49,7 +49,7 @@ LP_TITLE="$(_lp_title "${WSL_DISTRO_NAME:-$LP_PS1}")"
 LP_PS1="${LP_TITLE}${LP_PS1}"
 
 # Set Cursor Style to the string returned by setCursorStyle function
-LP_CURSOR="${_LP_OPEN_ESC}$(_lp_setCursorStyle)${_LP_CLOSE_ESC}"
+LP_CURSOR="${_LP_OPEN_ESC}$(setCursorStyle)${_LP_CLOSE_ESC}"
 # Cursor Style: embed OSC ctrl. sequence 'Set Cursor Style' (non-print chars)
 LP_PS1="${LP_PS1}${LP_CURSOR}"
 
