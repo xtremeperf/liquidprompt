@@ -686,6 +686,7 @@ fi
 
 _lp_connection()
 {
+    # Detect SSH connection
     if [[ -n "${SSH_CLIENT-}${SSH2_CLIENT-}${SSH_TTY-}" ]]; then
         echo ssh
     else
@@ -693,10 +694,17 @@ _lp_connection()
         # TODO check on *BSD
         local whoami="$(LC_ALL=C who am i)"
         local sess_parent="$(ps -o comm= -p $PPID 2> /dev/null)"
-        if [[ x"$whoami" != *'('* || x"$whoami" = *'(:'* || x"$whoami" = *'(tmux'* ]]; then
+
+        if [[ x"$whoami" != *'('* || x"$whoami" = *'(:'* || x"$whoami" = *'(tmux'* ]]
+        then
             echo lcl  # Local
-        elif [[ "$sess_parent" = "su" || "$sess_parent" = "sudo" ]]; then
+        elif [[ -n $(grep -i "Microsoft" /proc/version) && -f /proc/sys/fs/binfmt_misc/WSLInterop ]]
+        then
+            echo wsl  # Local on Windows Subsystem for Linux
+        elif [[ "$sess_parent" = "su" || "$sess_parent" = "sudo" ]]
+        then
             echo su   # Remote su/sudo
+        # Default connection type
         else
             echo tel  # Telnet
         fi
@@ -713,15 +721,6 @@ LP_HOST=""
 # Only process hostname elements if we haven't turned them off
 if (( LP_HOSTNAME_ALWAYS != -1 )); then
 
-    [[ -r /etc/debian_chroot ]] && LP_HOST="($(< /etc/debian_chroot))"
-
-    # Which host symbol should we use?
-    if (( LP_ENABLE_FQDN )); then
-        LP_HOST_SYMBOL="${_LP_FQDN_SYMBOL}"
-    else
-        LP_HOST_SYMBOL="${_LP_HOST_SYMBOL}"
-    fi
-
     # If we are connected with a X11 support
     if [[ -n "$DISPLAY" ]]; then
         LP_HOST="${LP_COLOR_X11_ON}${LP_HOST}${LP_MARK_X11}${NO_COL}"
@@ -729,13 +728,30 @@ if (( LP_HOSTNAME_ALWAYS != -1 )); then
         LP_HOST="${LP_COLOR_X11_OFF}${LP_HOST}${LP_MARK_X11}${NO_COL}"
     fi
 
-    case "$(_lp_connection)" in
-    lcl)
-        if (( LP_HOSTNAME_ALWAYS )); then
-            LP_HOST+="${LP_COLOR_HOST}${LP_HOST_SYMBOL}${NO_COL}"
+    # Which host symbol should we use?
+    if (( LP_ENABLE_FQDN )); then
+        LP_HOST_SYMBOL="${_LP_FQDN_SYMBOL}"
+    else
+        if [[ -r /etc/debian_chroot ]]; then
+            LP_HOST_SYMBOL="$(< /etc/debian_chroot)"
+        elif [[ -n ${WSL_DISTRO_NAME} ]]; then
+            LP_HOST_SYMBOL="${WSL_DISTRO_NAME}"
         else
-            # FIXME do we want to display the chroot if local?
-            LP_HOST="" # no hostname if local
+            LP_HOST_SYMBOL="${_LP_HOST_SYMBOL}"
+        fi
+    fi
+
+    case "$(_lp_connection)" in
+    lcl | wsl)
+        if (( LP_HOSTNAME_ALWAYS )); then
+            # hostname
+            LP_HOST+="${LP_COLOR_HOST}${LP_HOST_SYMBOL}${NO_COL}"
+        elif [[ ${WSL_DISTRO_NAME} || -r /etc/debian_chroot ]]; then
+            # container name
+            LP_HOST+="${LP_COLOR_HOST}'${LP_HOST_SYMBOL}'${NO_COL}"
+        else
+            # no hostname if local
+            LP_HOST=
         fi
         ;;
     ssh)
@@ -2080,30 +2096,26 @@ prompt_OFF()
     fi
 }
 
-# Set cursor style (shape), remember it and send to the terminal at every prompt
-setCursorStyle()
-{
+# Set cursor style by printing terminal ctlseq. and keep track using a variable
+_lp_setCursorStyle() {
   local Ps
   case "$1" in
-    1 | 2 | 3 | 4 | 5 | 6)
-      # Set cursor style to a NEW value passed in as a parameter.
-      Ps=$1
-      ;;
     0)
-      # Reset cursor style to DEFAULT value from the theme definition.
-      Ps=${LP_CURSOR_STYLE}
+      # Reset cursor style to DEFAULT value defined in theme.
+      Ps=$LP_CURSOR_STYLE
+      ;;
+    1 | 2 | 3 | 4 | 5 | 6)
+      # Set cursor style to a NEW value passed in as parameter.
+      Ps=$1
       ;;
     *)
       # Keep cursor style as ACTIVE value, or DEFAULT if null.
-      Ps=${LP_CURSOR_ACTIVE:-${LP_CURSOR_STYLE}}
+      Ps=${LP_CURSOR_ACTIVE:-$LP_CURSOR_STYLE}
       ;;
   esac
-
-  if [[ ${Ps} ]]; then
-    # Print OSC ctrl seq for "DEC Set Cursor Style"
-    printf '\e[%s q' ${Ps}
-    LP_CURSOR_ACTIVE=${Ps}
-  fi
+  # Print OSC ctl seq for "DEC Set Cursor Style"
+  printf '\e[%s q' $Ps
+  LP_CURSOR_ACTIVE=$Ps
 }
 
 # By default, sourcing liquidprompt will activate Liquid Prompt
